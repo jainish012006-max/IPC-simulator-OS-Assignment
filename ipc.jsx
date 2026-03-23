@@ -1,128 +1,150 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const COLORS = {
-  bg: "#0b1120",
-  panel: "#0f1a2e",
-  border: "#1e3358",
-  accent: "#d4a017",
-  accent2: "#1a6fc4",
-  accent3: "#2eaadc",
-  warn: "#e8892b",
-  danger: "#e05252",
-  text: "#e8edf5",
-  muted: "#6b82a8",
-  card: "#111d33",
+  bg: "#050508",
+  bgGradient: "linear-gradient(135deg, #050508 0%, #0a0a14 25%, #080814 50%, #050510 100%)",
+  panel: "rgba(12, 12, 22, 0.85)",
+  border: "rgba(0, 245, 255, 0.15)",
+  borderGlow: "rgba(0, 245, 255, 0.4)",
+  accent: "#00f5ff",
+  accent2: "#b44dff",
+  accent3: "#00ff88",
+  warn: "#ffb020",
+  danger: "#ff3366",
+  text: "#e4e4e7",
+  muted: "rgba(161, 161, 170, 0.9)",
+  card: "rgba(18, 18, 28, 0.6)",
+  cardBorder: "rgba(255, 255, 255, 0.06)",
+  onAccent: "#050508",
 };
 
 const style = {
   app: {
-    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-    background: COLORS.bg,
+    fontFamily: "'DM Sans', -apple-system, sans-serif",
+    background: COLORS.bgGradient,
     minHeight: "100vh",
     color: COLORS.text,
     padding: "0",
+    position: "relative",
+    overflowX: "hidden",
   },
   header: {
-    background: `linear-gradient(135deg, #0b1120 0%, #0f1a2e 100%)`,
+    background: "rgba(8, 8, 18, 0.7)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
     borderBottom: `1px solid ${COLORS.border}`,
-    padding: "18px 32px",
+    boxShadow: `0 4px 30px rgba(0, 245, 255, 0.05)`,
+    padding: "20px 36px",
     display: "flex",
     alignItems: "center",
     gap: "16px",
   },
   logo: {
-    fontSize: "22px",
-    fontWeight: "700",
+    fontFamily: "'Syne', sans-serif",
+    fontSize: "24px",
+    fontWeight: "800",
     color: COLORS.accent,
-    letterSpacing: "2px",
+    letterSpacing: "3px",
     textTransform: "uppercase",
+    textShadow: `0 0 20px rgba(0, 245, 255, 0.5), 0 0 40px rgba(0, 245, 255, 0.2)`,
   },
-  subtitle: { fontSize: "12px", color: COLORS.muted, letterSpacing: "1px" },
+  subtitle: { fontSize: "13px", color: COLORS.muted, letterSpacing: "1.5px", fontFamily: "'DM Sans', sans-serif" },
   tabs: {
     display: "flex",
     gap: "0",
-    padding: "0 32px",
+    padding: "0 36px",
     borderBottom: `1px solid ${COLORS.border}`,
     background: COLORS.panel,
+    backdropFilter: "blur(12px)",
   },
   tab: (active) => ({
-    padding: "14px 24px",
+    padding: "16px 28px",
     cursor: "pointer",
     fontSize: "13px",
-    fontWeight: active ? "700" : "400",
+    fontWeight: active ? "700" : "500",
     color: active ? COLORS.accent : COLORS.muted,
     borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent",
-    transition: "all 0.2s",
-    letterSpacing: "0.5px",
+    boxShadow: active ? `0 0 20px rgba(0, 245, 255, 0.2)` : "none",
+    transition: "all 0.25s ease",
+    letterSpacing: "1px",
     background: "transparent",
     border: "none",
-    fontFamily: "inherit",
+    fontFamily: "'Syne', sans-serif",
   }),
-  main: { padding: "28px 32px", maxWidth: "1200px", margin: "0 auto" },
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" },
+  main: { padding: "32px 36px", maxWidth: "1200px", margin: "0 auto", position: "relative", zIndex: 1 },
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" },
   card: {
     background: COLORS.card,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: "10px",
-    padding: "20px",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    border: `1px solid ${COLORS.cardBorder}`,
+    borderRadius: "16px",
+    padding: "24px",
+    boxShadow: `0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.03) inset`,
   },
   cardTitle: {
     fontSize: "11px",
     textTransform: "uppercase",
-    letterSpacing: "2px",
+    letterSpacing: "2.5px",
     color: COLORS.muted,
-    marginBottom: "14px",
+    marginBottom: "16px",
     display: "flex",
     alignItems: "center",
     gap: "8px",
+    fontFamily: "'Syne', sans-serif",
+    fontWeight: "600",
   },
   btn: (color = COLORS.accent) => ({
     background: "transparent",
     border: `1px solid ${color}`,
     color: color,
-    padding: "8px 18px",
-    borderRadius: "6px",
+    padding: "10px 20px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontSize: "12px",
-    fontFamily: "inherit",
+    fontFamily: "'Syne', sans-serif",
     fontWeight: "600",
     letterSpacing: "0.5px",
-    transition: "all 0.2s",
+    transition: "all 0.25s ease",
+    boxShadow: `0 0 15px ${color}22`,
   }),
   btnFill: (color = COLORS.accent) => ({
-    background: color,
+    background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
     border: `1px solid ${color}`,
-    color: "#0b1120",
-    padding: "8px 18px",
-    borderRadius: "6px",
+    color: COLORS.onAccent,
+    padding: "10px 20px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontSize: "12px",
-    fontFamily: "inherit",
+    fontFamily: "'Syne', sans-serif",
     fontWeight: "700",
     letterSpacing: "0.5px",
-    transition: "all 0.2s",
+    transition: "all 0.25s ease",
+    boxShadow: `0 0 20px ${color}44, 0 4px 15px rgba(0,0,0,0.3)`,
   }),
   input: {
-    background: "#0b1120",
+    background: "rgba(5, 5, 10, 0.8)",
     border: `1px solid ${COLORS.border}`,
     color: COLORS.text,
-    padding: "8px 12px",
-    borderRadius: "6px",
-    fontSize: "12px",
-    fontFamily: "inherit",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    fontSize: "13px",
+    fontFamily: "'DM Sans', sans-serif",
     outline: "none",
     width: "100%",
     boxSizing: "border-box",
+    transition: "all 0.2s ease",
   },
   log: {
-    background: "#080e1a",
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: "8px",
-    padding: "14px",
+    background: "rgba(5, 5, 12, 0.6)",
+    border: `1px solid ${COLORS.cardBorder}`,
+    borderRadius: "12px",
+    padding: "16px",
     height: "160px",
     overflowY: "auto",
     fontSize: "11px",
     lineHeight: "1.8",
+    boxShadow: "inset 0 2px 8px rgba(0,0,0,0.3)",
   },
   logEntry: (type) => ({
     color:
@@ -136,32 +158,36 @@ const style = {
         ? COLORS.accent
         : COLORS.muted,
     display: "block",
+    textShadow: ["success", "warn", "error", "info"].includes(type) ? `0 0 8px currentColor` : "none",
   }),
   badge: (color) => ({
     display: "inline-block",
-    padding: "2px 8px",
-    borderRadius: "4px",
+    padding: "4px 10px",
+    borderRadius: "8px",
     fontSize: "10px",
     fontWeight: "700",
-    background: color + "22",
+    background: `${color}18`,
     color: color,
-    border: `1px solid ${color}44`,
-    letterSpacing: "0.5px",
+    border: `1px solid ${color}40`,
+    letterSpacing: "1px",
+    fontFamily: "'Syne', sans-serif",
+    boxShadow: `0 0 12px ${color}22`,
   }),
   segment: (filled, color) => ({
     width: "36px",
     height: "36px",
-    borderRadius: "6px",
+    borderRadius: "10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "9px",
     fontWeight: "700",
-    background: filled ? color + "33" : "#0b1120",
+    background: filled ? `${color}25` : "rgba(5, 5, 12, 0.8)",
     border: `1px solid ${filled ? color : COLORS.border}`,
     color: filled ? color : COLORS.muted,
-    transition: "all 0.3s",
+    transition: "all 0.3s ease",
     letterSpacing: "0px",
+    boxShadow: filled ? `0 0 15px ${color}33` : "none",
   }),
 };
 
@@ -597,7 +623,7 @@ function SemaphoreTab() {
             <div style={{ fontSize: "10px", color: COLORS.muted, marginBottom: "6px" }}>CRITICAL SECTION</div>
             <div style={{
               minHeight: "50px", padding: "8px", borderRadius: "6px",
-              background: criticalSection.length > 0 ? COLORS.accent3 + "11" : "#0b1120",
+              background: criticalSection.length > 0 ? COLORS.accent3 + "11" : COLORS.bg,
               border: `1px dashed ${criticalSection.length > 0 ? COLORS.accent3 : COLORS.border}`,
               display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap",
             }}>
@@ -615,7 +641,7 @@ function SemaphoreTab() {
             <div style={{ fontSize: "10px", color: COLORS.muted, marginBottom: "6px" }}>WAIT QUEUE</div>
             <div style={{
               minHeight: "40px", padding: "8px", borderRadius: "6px",
-              background: waitQueue.length > 0 ? COLORS.warn + "11" : "#0b1120",
+              background: waitQueue.length > 0 ? COLORS.warn + "11" : COLORS.bg,
               border: `1px dashed ${waitQueue.length > 0 ? COLORS.warn : COLORS.border}`,
               display: "flex", gap: "8px", alignItems: "center",
             }}>
@@ -691,17 +717,53 @@ export default function App() {
 
   return (
     <div style={style.app}>
+      {/* Shiny ambient background */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+        background: `
+          radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 245, 255, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse 60% 40% at 100% 100%, rgba(180, 77, 255, 0.1) 0%, transparent 45%),
+          radial-gradient(ellipse 50% 30% at 0% 80%, rgba(0, 255, 136, 0.08) 0%, transparent 40%),
+          linear-gradient(180deg, transparent 0%, rgba(5, 5, 8, 0.3) 100%)
+        `,
+      }} />
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+        backgroundImage: `linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px)`,
+        backgroundSize: "60px 60px",
+        opacity: 0.6,
+      }} />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        button:hover { opacity: 0.85; transform: translateY(-1px); }
+        button:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.1);
+        }
+        button:hover:not(:disabled) {
+          box-shadow: 0 0 25px rgba(0, 245, 255, 0.35), 0 4px 20px rgba(0,0,0,0.4);
+        }
         button:active { transform: translateY(0); }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #0b1120; }
-        ::-webkit-scrollbar-thumb { background: #1e3358; border-radius: 4px; }
+        input:focus {
+          border-color: rgba(0, 245, 255, 0.5);
+          box-shadow: 0 0 20px rgba(0, 245, 255, 0.15);
+          outline: none;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(5, 5, 10, 0.8); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, rgba(0,245,255,0.4) 0%, rgba(180,77,255,0.3) 100%);
+          border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 245, 255, 0.6); }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes slideOut { from { opacity: 1; } to { opacity: 0; transform: translateX(20px); } }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+        @keyframes shimmer {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+        body { background: #050508; margin: 0; }
       `}</style>
 
       <div style={style.header}>
