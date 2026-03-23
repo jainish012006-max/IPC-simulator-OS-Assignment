@@ -494,11 +494,14 @@ function MessageQueueTab() {
   );
 }
 
+const PROC_COLORS = [COLORS.accent, COLORS.accent2, COLORS.accent3, COLORS.warn];
+
 // ── SEMAPHORE / MUTEX TAB ──────────────────────────────────────────────────────
 function SemaphoreTab() {
   const [semType, setSemType] = useState("mutex"); // mutex | counting
   const [semValue, setSemValue] = useState(1);
   const [maxCount, setMaxCount] = useState(3);
+  const [processCount, setProcessCount] = useState(4);
   const [processes, setProcesses] = useState([
     { id: "P1", state: "ready", color: COLORS.accent },
     { id: "P2", state: "ready", color: COLORS.accent2 },
@@ -512,6 +515,13 @@ function SemaphoreTab() {
   const addLog = (msg, type = "info") =>
     setLogs((l) => [...l.slice(-40), { msg, type, ts: Date.now() }]);
 
+  const buildProcesses = (n) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `P${i + 1}`,
+      state: "ready",
+      color: PROC_COLORS[i % PROC_COLORS.length],
+    }));
+
   const reset = () => {
     const val = semType === "mutex" ? 1 : maxCount;
     setSemValue(val);
@@ -522,6 +532,14 @@ function SemaphoreTab() {
   };
 
   useEffect(() => { reset(); }, [semType, maxCount]);
+
+  useEffect(() => {
+    const n = Math.max(2, Math.min(8, processCount));
+    setProcesses(buildProcesses(n));
+    setWaitQueue([]);
+    setCriticalSection([]);
+    setSemValue(semType === "mutex" ? 1 : maxCount);
+  }, [processCount]);
 
   const wait = (pid) => {
     const proc = processes.find((p) => p.id === pid);
@@ -579,13 +597,26 @@ function SemaphoreTab() {
             onClick={() => setSemType(t)}>{t === "mutex" ? "🔒 Mutex (Binary)" : "🔢 Counting Semaphore"}</button>
         ))}
         {semType === "counting" && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "11px", color: COLORS.muted }}>Max:</span>
-            {[2, 3, 4].map((n) => (
-              <button key={n} style={maxCount === n ? style.btnFill(COLORS.accent2) : style.btn(COLORS.accent2)}
-                onClick={() => setMaxCount(n)}>{n}</button>
-            ))}
-          </div>
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "11px", color: COLORS.muted }}>Max:</span>
+              {[2, 3, 4].map((n) => (
+                <button key={n} style={maxCount === n ? style.btnFill(COLORS.accent2) : style.btn(COLORS.accent2)}
+                  onClick={() => setMaxCount(n)}>{n}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "11px", color: COLORS.muted }}>Processes:</span>
+              <input
+                type="number"
+                min={2}
+                max={8}
+                value={processCount}
+                onChange={(e) => setProcessCount(Math.max(2, Math.min(8, parseInt(e.target.value, 10) || 2)))}
+                style={{ ...style.input, width: "56px", padding: "6px 10px" }}
+              />
+            </div>
+          </>
         )}
         <button style={{ ...style.btn(COLORS.muted), marginLeft: "auto" }} onClick={reset}>↺ Reset</button>
       </div>
@@ -707,9 +738,9 @@ function SemaphoreTab() {
 
 // ── APP ROOT ───────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: "shm", label: "Shared Memory", icon: "🗂" },
-  { id: "mq", label: "Message Queue", icon: "📨" },
-  { id: "sem", label: "Semaphore / Mutex", icon: "🔒" },
+  { id: "shm", label: "Shared Memory", icon: "🗂", badgeLabel: "Shared Memory" },
+  { id: "mq", label: "Message Queue", icon: "📨", badgeLabel: "Message Queue" },
+  { id: "sem", label: "Semaphore / Mutex", icon: "🔒", badgeLabel: "Semaphore" },
 ];
 
 export default function App() {
@@ -764,6 +795,14 @@ export default function App() {
           50% { opacity: 1; }
         }
         body { background: #050508; margin: 0; }
+        .nav-badge:hover {
+          box-shadow: 0 0 25px rgba(0, 245, 255, 0.6), 0 0 50px rgba(0, 245, 255, 0.3) !important;
+          transform: scale(1.05);
+          filter: brightness(1.2);
+        }
+        .nav-tab:hover {
+          box-shadow: 0 0 30px rgba(0, 245, 255, 0.4), 0 0 60px rgba(0, 245, 255, 0.15) !important;
+        }
       `}</style>
 
       <div style={style.header}>
@@ -771,16 +810,35 @@ export default function App() {
           <div style={style.logo}>⬡ IPC Simulator</div>
           <div style={style.subtitle}>Inter-Process Communication — OS Assignment Visualizer</div>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
-          {["Shared Memory", "Message Queue", "Semaphore"].map((m) => (
-            <span key={m} style={style.badge(COLORS.accent)}>{m}</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "10px" }}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className="nav-badge"
+              style={{
+                ...style.badge(tab === t.id ? COLORS.accent : "#6b7280"),
+                cursor: "pointer",
+                border: "none",
+                fontFamily: "inherit",
+                transition: "all 0.25s ease",
+                boxShadow: tab === t.id ? `0 0 20px rgba(0, 245, 255, 0.5), 0 0 40px rgba(0, 245, 255, 0.2)` : `0 0 12px ${COLORS.accent}22`,
+              }}
+              onClick={() => setTab(t.id)}
+            >
+              {t.badgeLabel}
+            </button>
           ))}
         </div>
       </div>
 
       <div style={style.tabs}>
         {TABS.map((t) => (
-          <button key={t.id} style={style.tab(tab === t.id)} onClick={() => setTab(t.id)}>
+          <button
+            key={t.id}
+            className="nav-tab"
+            style={style.tab(tab === t.id)}
+            onClick={() => setTab(t.id)}
+          >
             {t.icon} {t.label}
           </button>
         ))}
