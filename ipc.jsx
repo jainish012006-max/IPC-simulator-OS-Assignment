@@ -133,6 +133,56 @@ function ProcessConfigCard({ procInput, onInput, onBlur, processes, MIN_PROC, MA
   );
 }
 
+function ProcessLocalDataCard({ title, icon, processes, procData }) {
+  const T = useTheme();
+  const bp = useBreakpoint();
+  const s = makeStyles(T, bp);
+  const [selectedPid, setSelectedPid] = useState(processes[0]?.id || "P1");
+
+  useEffect(() => {
+    if (!processes.find(p => p.id === selectedPid)) {
+      setSelectedPid(processes[0]?.id || "P1");
+    }
+  }, [processes, selectedPid]);
+
+  const p = processes.find(x => x.id === selectedPid) || processes[0];
+  if (!p) return null;
+
+  const data = procData[p.id] || [];
+
+  return (
+    <div style={{ ...s.card, marginTop:"16px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px", flexWrap:"wrap", gap:"8px" }}>
+        <div style={{...s.cardTitle, marginBottom:0}}><span style={{ color:T.accent3 }}>{icon}</span> {title}</div>
+        <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
+          <span style={{ fontSize:"10px", color:T.muted, alignSelf:"center", marginRight:"4px" }}>SELECT PROCESS:</span>
+          {processes.map(proc => (
+            <button key={proc.id} style={{...s.btn(proc.id===selectedPid ? proc.color : T.muted), padding:"4px 10px", fontSize:"10px", background:proc.id===selectedPid ? proc.color+"22" : "transparent" }} onClick={() => setSelectedPid(proc.id)}>
+              {proc.id}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      <div style={{ background:T.bg, padding:"12px", borderRadius:"10px", border:`1px solid ${p.color}44`, boxShadow:`inset 0 0 10px ${p.color}05`, minHeight:"80px" }}>
+        <div style={{ fontSize:"12px", fontWeight:"800", color:p.color, marginBottom:"8px", borderBottom:`1px solid ${p.color}22`, paddingBottom:"6px", display:"flex", justifyContent:"space-between" }}>
+          <span>{p.id} Internal Data</span>
+          <span style={{ fontSize:"10px", opacity:0.8 }}>{data.length} items</span>
+        </div>
+        <div style={{ fontSize:"11px", color:T.text, display:"flex", flexDirection:"column", gap:"6px", maxHeight:"150px", overflowY:"auto", paddingRight:"4px" }}>
+          {data.length === 0 ? (
+            <span style={{ color:T.muted, fontStyle:"italic", padding:"10px 0" }}>Empty</span>
+          ) : (
+            data.map((m,i) => (
+              <div key={i} style={{ background:`${p.color}15`, padding:"6px 10px", borderRadius:"6px", borderLeft:`3px solid ${p.color}` }}>{m}</div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityLog({ logs }) {
   const T = useTheme();
   const bp = useBreakpoint();
@@ -167,8 +217,10 @@ function SharedMemoryTab() {
   const [writeValue, setWriteValue] = useState("Hello");
   const [readSlot, setReadSlot] = useState(0);
   const [logs, setLogs] = useState([]);
+  const [procData, setProcData] = useState({});
   const [highlight, setHighlight] = useState(null);
   const [animSlot, setAnimSlot] = useState(null);
+  const [isRacing, setIsRacing] = useState(false);
 
   useEffect(() => {
     const np = buildProcesses(processCount, T.isDark);
@@ -183,6 +235,27 @@ function SharedMemoryTab() {
   const addLog = (msg, type="info") => setLogs((l) => [...l.slice(-40), { msg, type, ts:Date.now() }]);
   const writerProc = processes.find((p) => p.id === writerPid) || processes[0];
   const readerProc = processes.find((p) => p.id === readerPid) || processes[0];
+
+  const simulateRace = () => {
+    if (isRacing) return;
+    setIsRacing(true);
+    const p1 = processes[0]?.id || "P1";
+    const p2 = processes[1]?.id || "P2";
+    addLog(`[RACE] ${p1} and ${p2} are writing to slot[0] simultaneously...`, "warn");
+    setAnimSlot(0);
+    
+    setTimeout(() => {
+      setMemory(m => { const n=[...m]; n[0]={ value:"Data_A", writer:p1 }; return n; });
+      addLog(`[RACE] ${p1} wrote "Data_A" to slot[0]`, "info");
+      
+      setTimeout(() => {
+        setMemory(m => { const n=[...m]; n[0]={ value:"Data_B", writer:p2 }; return n; });
+        addLog(`[RACE] ${p2} wrote "Data_B" to slot[0] — OVERWROTE ${p1}!`, "danger");
+        setHighlight(0);
+        setTimeout(() => { setAnimSlot(null); setHighlight(null); setIsRacing(false); }, 1200);
+      }, 50);
+    }, 400);
+  };
 
   const write = () => {
     const slot = Number(writeSlot);
@@ -201,6 +274,7 @@ function SharedMemoryTab() {
     if (slot < 0 || slot >= SLOTS) return addLog("Invalid slot index","error");
     const cell = memory[slot];
     setHighlight(slot);
+    if (cell) setProcData(p => ({ ...p, [readerPid]: [...(p[readerPid]||[]), cell.value] }));
     addLog(cell ? `${readerPid} ← read "${cell.value}" from slot[${slot}] (written by ${cell.writer})` : `${readerPid} ← slot[${slot}] is EMPTY`, cell ? "success" : "warn");
     setTimeout(() => setHighlight(null), 1200);
   };
@@ -239,6 +313,16 @@ function SharedMemoryTab() {
             })}
           </div>
           <div style={{ fontSize:"10px", color:T.muted }}>Cell color = writing process · Click to clear</div>
+          <div style={{ display:"flex", gap:"8px", marginTop:"16px" }}>
+            <div style={{ flex:1, padding:"12px", borderRadius:"8px", border:`1px solid ${T.border}`, background:T.bg }}>
+              <div style={{ fontSize:"10px", color:T.muted, marginBottom:"4px", letterSpacing:"1px" }}>USED SLOTS</div>
+              <div style={{ fontSize:"20px", fontWeight:"700", color:T.accent }}>{memory.filter(m=>m).length}/8</div>
+            </div>
+            <div style={{ flex:1, padding:"12px", borderRadius:"8px", border:`1px solid ${T.border}`, background:T.bg }}>
+              <div style={{ fontSize:"10px", color:T.muted, marginBottom:"4px", letterSpacing:"1px" }}>FREE SLOTS</div>
+              <div style={{ fontSize:"20px", fontWeight:"700", color:T.accent3 }}>{memory.filter(m=>!m).length}/8</div>
+            </div>
+          </div>
         </div>
 
         {/* Write + Read */}
@@ -280,6 +364,16 @@ function SharedMemoryTab() {
               <button style={{ ...s.btnFill(readerProc?.color||T.accent2), flex:1, minWidth: bp.isMobile ? "100%" : "auto" }} onClick={read}>▶ {readerPid} reads from Shared Memory</button>
             </div>
           </div>
+
+          <div style={s.card}>
+            <div style={s.cardTitle}><span style={s.badge(T.warn)}>⚠️ DEMO</span> RACE CONDITION SIMULATION</div>
+            <p style={{ fontSize:"11px", color:T.muted, marginBottom:"12px", lineHeight:"1.6" }}>
+              Both P1 and P2 write to slot[0] simultaneously — last write wins, first write is <span style={{color:T.danger}}>permanently lost</span>. This is exactly why Shared Memory needs a Mutex (Tab 3).
+            </p>
+            <button style={{ ...s.btn(isRacing ? T.muted : T.warn), width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:"8px", padding:"10px", pointerEvents: isRacing ? "none" : "auto", opacity: isRacing ? 0.7 : 1 }} onClick={simulateRace} disabled={isRacing}>
+              <span>⚡</span> {isRacing ? "Simulating Race..." : "Simulate Race Condition on slot[0]"}
+            </button>
+          </div>
         </div>
       </div>
       <ActivityLog logs={logs} />
@@ -287,8 +381,8 @@ function SharedMemoryTab() {
   );
 }
 
-// ── MESSAGE QUEUE TAB ──────────────────────────────────────────────────────────
-function MessageQueueTab() {
+// ── MESSAGE PASSING TAB ────────────────────────────────────────────────────────
+function MessagePassingTab() {
   const T = useTheme();
   const bp = useBreakpoint();
   const s = makeStyles(T, bp);
@@ -298,16 +392,19 @@ function MessageQueueTab() {
   const [procInput, setProcInput] = useState("3");
   const [processes, setProcesses] = useState(() => buildProcesses(3, true));
   const [sender, setSender] = useState("P1");
+  const [targetProc, setTargetProc] = useState("P2");
   const [queue, setQueue] = useState([]);
   const [msgInput, setMsgInput] = useState("");
   const [priority, setPriority] = useState("normal");
   const [logs, setLogs] = useState([]);
+  const [procData, setProcData] = useState({});
 
   useEffect(() => {
     const np = buildProcesses(processCount, T.isDark);
     setProcesses(np);
     const ids = np.map((p) => p.id);
     if (!ids.includes(sender)) setSender(ids[0]);
+    if (!ids.includes(targetProc)) setTargetProc(ids[Math.min(1, ids.length - 1)]);
   }, [processCount, T.isDark]);
 
   const handleProcInput = (e) => { setProcInput(e.target.value); const n=parseInt(e.target.value,10); if(!isNaN(n)) setProcessCount(Math.max(MIN_PROC,Math.min(MAX_PROC,n))); };
@@ -318,20 +415,26 @@ function MessageQueueTab() {
 
   const enqueue = () => {
     if (!msgInput.trim()) return addLog("Message cannot be empty","error");
-    if (queue.length >= MAX_Q) return addLog("Queue is FULL!","error");
-    const msg = { id:Date.now(), text:msgInput.trim(), priority, sender };
-    setTimeout(() => { setQueue((q) => priority==="high"?[msg,...q]:[...q,msg]); addLog(`${sender} → enqueued [${priority.toUpperCase()}] "${msgInput.trim()}"`,"success"); setMsgInput(""); }, 300);
+    if (queue.length >= MAX_Q) return addLog("Kernel Buffer is FULL!","error");
+    const msg = { id:Date.now(), text:msgInput.trim(), priority, sender, target: targetProc };
+    setTimeout(() => { setQueue((q) => priority==="high"?[msg,...q]:[...q,msg]); addLog(`${sender} → sent [${priority.toUpperCase()}] "${msgInput.trim()}" to Kernel buffer`,"success"); setMsgInput(""); }, 300);
   };
 
   const dequeue = () => {
-    if (queue.length===0) return addLog("Queue is EMPTY!","warn");
-    setTimeout(() => { setQueue((q) => { const [msg,...rest]=q; addLog(`Dequeued [${msg.priority.toUpperCase()}] "${msg.text}" (sent by ${msg.sender})`,"success"); return rest; }); }, 300);
+    if (queue.length===0) return addLog("Kernel Buffer is EMPTY!","warn");
+    const msgToDeliver = queue[0];
+    setTimeout(() => { 
+      setQueue((q) => q.length > 0 ? q.slice(1) : q); 
+      setProcData(p => ({ ...p, [msgToDeliver.target]: [...(p[msgToDeliver.target]||[]), msgToDeliver.text] }));
+      addLog(`Kernel delivered [${msgToDeliver.priority.toUpperCase()}] "${msgToDeliver.text}" from ${msgToDeliver.sender} to ${msgToDeliver.target}`,"success"); 
+    }, 300);
   };
+
 
   return (
     <div>
       <p style={{ color:T.muted, fontSize:"12px", marginBottom:"16px", lineHeight:"1.6" }}>
-        Message Queues provide an asynchronous IPC channel. Producers enqueue; consumers dequeue. High-priority messages jump to the front.
+        Message Passing involves a process sending a message to the Kernel, and then the Kernel delivering the message to the target process. High-priority messages jump to the front of the Kernel buffer.
       </p>
       <ProcessConfigCard procInput={procInput} onInput={handleProcInput} onBlur={handleProcBlur} processes={processes} MIN_PROC={MIN_PROC} MAX_PROC={MAX_PROC} />
 
@@ -339,22 +442,22 @@ function MessageQueueTab() {
         {/* Queue State */}
         <div style={s.card}>
           <div style={s.cardTitle}>
-            <span style={{ color:T.accent }}>◈</span> Queue State
+            <span style={{ color:T.accent }}>◈</span> Kernel Message Buffer
             <span style={{ marginLeft:"auto", ...s.badge(queue.length>=MAX_Q?T.danger:T.accent3) }}>{queue.length}/{MAX_Q}</span>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:"6px", minHeight:"180px" }}>
-            {queue.length===0 && <div style={{ color:T.muted, fontSize:"12px", padding:"20px 0", textAlign:"center" }}>Queue is empty</div>}
+            {queue.length===0 && <div style={{ color:T.muted, fontSize:"12px", padding:"20px 0", textAlign:"center" }}>Buffer is empty</div>}
             {queue.map((msg, i) => (
               <div key={msg.id} style={{ display:"flex", alignItems:"center", gap:"8px", padding:"8px 10px", background:priColor(msg.priority)+"11", border:`1px solid ${priColor(msg.priority)}44`, borderRadius:"6px", transition:"all 0.3s", flexWrap: bp.isMobile ? "wrap" : "nowrap" }}>
                 <span style={s.badge(priColor(msg.priority))}>{msg.priority}</span>
                 <span style={{ flex:1, fontSize:"12px", minWidth:"60px" }}>{msg.text}</span>
-                <span style={{ fontSize:"10px", color:T.muted, whiteSpace:"nowrap" }}>from {msg.sender}</span>
+                <span style={{ fontSize:"10px", color:T.muted, whiteSpace:"nowrap" }}>{msg.sender} ▶ {msg.target}</span>
                 {i===0 && <span style={{ fontSize:"10px", color:T.warn, whiteSpace:"nowrap" }}>← HEAD</span>}
               </div>
             ))}
           </div>
           <div style={{ marginTop:"12px" }}>
-            <div style={{ fontSize:"10px", color:T.muted, marginBottom:"4px" }}>Queue Capacity</div>
+            <div style={{ fontSize:"10px", color:T.muted, marginBottom:"4px" }}>Buffer Capacity</div>
             <div style={{ display:"flex", gap:"4px" }}>
               {Array(MAX_Q).fill(0).map((_,i) => (
                 <div key={i} style={{ flex:1, height:"6px", borderRadius:"3px", background:i<queue.length?(queue.length>=MAX_Q?T.danger:T.accent):T.border, transition:"background 0.3s" }} />
@@ -366,11 +469,19 @@ function MessageQueueTab() {
         {/* Send + Receive */}
         <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <div style={s.card}>
-            <div style={s.cardTitle}><span style={s.badge(senderProc?.color||T.accent)}>SEND</span> Enqueue Message</div>
-            <div style={{ marginBottom:"8px" }}>
-              <div style={{ fontSize:"10px", color:T.muted, marginBottom:"6px" }}>SELECT SENDER PROCESS</div>
-              <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
-                {processes.map((p) => <button key={p.id} style={sender===p.id?s.btnFill(p.color):s.btn(p.color)} onClick={() => setSender(p.id)}>{p.id}</button>)}
+            <div style={s.cardTitle}><span style={s.badge(senderProc?.color||T.accent)}>SEND</span> Send to Kernel</div>
+            <div style={{ display:"flex", gap:"8px", marginBottom:"8px", flexWrap: bp.isMobile ? "wrap" : "nowrap" }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:"10px", color:T.muted, marginBottom:"6px" }}>SENDER PROCESS</div>
+                <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
+                  {processes.map((p) => <button key={p.id} style={sender===p.id?s.btnFill(p.color):s.btn(p.color)} onClick={() => setSender(p.id)}>{p.id}</button>)}
+                </div>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:"10px", color:T.muted, marginBottom:"6px" }}>TARGET PROCESS</div>
+                <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
+                  {processes.map((p) => <button key={p.id} style={targetProc===p.id?s.btnFill(p.color):s.btn(p.color)} onClick={() => setTargetProc(p.id)}>{p.id}</button>)}
+                </div>
               </div>
             </div>
             <div style={{ marginBottom:"8px" }}>
@@ -383,15 +494,15 @@ function MessageQueueTab() {
                 {["high","normal","low"].map((p) => <button key={p} style={priority===p?s.btnFill(priColor(p)):s.btn(priColor(p))} onClick={() => setPriority(p)}>{p}</button>)}
               </div>
             </div>
-            <button style={{ ...s.btnFill(senderProc?.color||T.accent), width:"100%" }} onClick={enqueue}>▶ {sender} Enqueues</button>
+            <button style={{ ...s.btnFill(senderProc?.color||T.accent), width:"100%" }} onClick={enqueue}>▶ {sender} Sends to Kernel</button>
           </div>
 
           <div style={s.card}>
-            <div style={s.cardTitle}><span style={s.badge(T.accent2)}>RECEIVE</span> Dequeue Message</div>
+            <div style={s.cardTitle}><span style={s.badge(T.accent2)}>KERNEL</span> Deliver Message</div>
             <p style={{ fontSize:"11px", color:T.muted, marginBottom:"12px", lineHeight:"1.6" }}>
-              Pulls the next message from the head of the queue (FIFO / highest priority first). Any waiting consumer receives it.
+              The Kernel pulls the next message from the head of its buffer and delivers it to the target process.
             </p>
-            <button style={{ ...s.btnFill(T.accent2), width:"100%" }} onClick={dequeue}>▶ Dequeue from Queue</button>
+            <button style={{ ...s.btnFill(T.accent2), width:"100%" }} onClick={dequeue}>▶ Kernel Delivers to Target</button>
           </div>
         </div>
       </div>
@@ -417,6 +528,7 @@ function SemaphoreTab() {
   const [waitQueue, setWaitQueue] = useState([]);
   const [criticalSection, setCriticalSection] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [procData, setProcData] = useState({});
 
   const addLog = (msg, type="info") => setLogs((l) => [...l.slice(-40), { msg, type, ts:Date.now() }]);
 
@@ -424,6 +536,7 @@ function SemaphoreTab() {
     const val = semType==="mutex"?1:maxCount;
     setSemValue(val); setWaitQueue([]); setCriticalSection([]);
     setProcesses((ps) => ps.map((p) => ({ ...p, state:"ready" })));
+    setProcData({});
     addLog(`Semaphore reset. Initial value = ${val}`,"info");
   };
 
@@ -437,7 +550,7 @@ function SemaphoreTab() {
   const wait = (pid) => {
     const proc = processes.find((p) => p.id===pid);
     if (!proc||proc.state!=="ready") return addLog(`${pid} is not in ready state`,"warn");
-    if (semValue>0) { setSemValue((v)=>v-1); setCriticalSection((cs)=>[...cs,pid]); setProcesses((ps)=>ps.map((p)=>p.id===pid?{...p,state:"critical"}:p)); addLog(`${pid} → wait() → entered Critical Section (sem=${semValue-1})`,"success"); }
+    if (semValue>0) { setSemValue((v)=>v-1); setCriticalSection((cs)=>[...cs,pid]); setProcesses((ps)=>ps.map((p)=>p.id===pid?{...p,state:"critical"}:p)); setProcData(p => ({...p, [pid]: [...(p[pid]||[]), "Entered CS"]})); addLog(`${pid} → wait() → entered Critical Section (sem=${semValue-1})`,"success"); }
     else { setWaitQueue((wq)=>[...wq,pid]); setProcesses((ps)=>ps.map((p)=>p.id===pid?{...p,state:"waiting"}:p)); addLog(`${pid} → wait() → BLOCKED (sem=0)`,"warn"); }
   };
 
@@ -450,8 +563,9 @@ function SemaphoreTab() {
       const [next,...rest]=waitQueue; setWaitQueue(rest);
       setCriticalSection((cs)=>[...cs,next]);
       setProcesses((ps)=>ps.map((p)=>p.id===next?{...p,state:"critical"}:p));
+      setProcData(p => ({...p, [pid]: [...(p[pid]||[]), "Exited CS"], [next]: [...(p[next]||[]), "Entered CS"]}));
       addLog(`${pid} → signal() → ${next} unblocked & enters CS`,"success");
-    } else { setSemValue((v)=>v+1); addLog(`${pid} → signal() → released CS (sem=${semValue+1})`,"success"); }
+    } else { setSemValue((v)=>v+1); setProcData(p => ({...p, [pid]: [...(p[pid]||[]), "Exited CS"]})); addLog(`${pid} → signal() → released CS (sem=${semValue+1})`,"success"); }
   };
 
   const stateColor = (st) => st==="critical"?T.accent3:st==="waiting"?T.warn:st==="ready"?T.accent:T.muted;
@@ -542,6 +656,7 @@ function SemaphoreTab() {
           </div>
         </div>
       </div>
+      <ProcessLocalDataCard title="Process History (Resource Access)" icon="🛡️" processes={processes} procData={procData} />
       <ActivityLog logs={logs} />
     </div>
   );
@@ -550,7 +665,7 @@ function SemaphoreTab() {
 // ── APP ROOT ───────────────────────────────────────────────────────────────────
 const TABS = [
   { id:"shm", label:"Shared Memory",    icon:"🗂", badgeLabel:"Shared Memory" },
-  { id:"mq",  label:"Message Queue",    icon:"📨", badgeLabel:"Message Queue" },
+  { id:"mq",  label:"Message Passing",    icon:"📨", badgeLabel:"Message Passing" },
   { id:"sem", label:"Semaphore / Mutex",icon:"🔒", badgeLabel:"Semaphore" },
 ];
 
@@ -626,7 +741,7 @@ export default function App() {
         {/* ── MAIN CONTENT ── */}
         <div style={s.main}>
           {tab==="shm" && <SharedMemoryTab />}
-          {tab==="mq"  && <MessageQueueTab />}
+          {tab==="mq"  && <MessagePassingTab />}
           {tab==="sem" && <SemaphoreTab />}
         </div>
       </div>
